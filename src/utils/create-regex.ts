@@ -1,12 +1,13 @@
+import * as core from '@actions/core'
 import _ from 'lodash'
 
 /**
- * Create a regex from a string
+ * Creates a regex from a string.
+ *
+ * @param ref The string to create a regex from.
+ * @returns A regex created from the string.
  */
-export async function createRegex(
-  core: typeof import('@actions/core'),
-  ref: string
-): Promise<RegExp> {
+export async function createRegex(ref: string): Promise<RegExp> {
   core.info(`Create regex from: ${ref}`)
 
   // Empty string.
@@ -17,8 +18,13 @@ export async function createRegex(
 
   // If the ref matches it's lodash representation, then it's an attempt to
   // match a branch name exactly. In that case, just return the ref as a regex
-  // (after escaping it).
-  if (ref === _.escapeRegExp(ref) && /^[\w\d\-\_\/]+$/.test(ref)) {
+  // (after escaping it). Periods have to be double escaped because
+  // `_.escapeRegExp` escapes them as `\\.` and the regex constructor expects
+  // them to be escaped as `\.`.
+  if (
+    ref.replaceAll('.', '\\.') === _.escapeRegExp(ref) &&
+    /^[\w\d\-_/\.]+$/.test(ref)
+  ) {
     core.info(`Exact match: ${ref}`)
     return new RegExp(_.escapeRegExp(ref))
   }
@@ -26,16 +32,16 @@ export async function createRegex(
   // Otherwise, its one of the other supported patterns.
   switch (ref) {
     case '*':
-      // Match letters, digits, dashes, or underscores.
+      // Match letters, digits, dashes, underscores, or periods.
       core.info(`Match letters, digits, dashes, underscores: ${ref}`)
-      return /^[\w\d\-\_]+$/
+      return /^[\w\d\-_\.]+$/
     case '**/*':
-      // Match letters, digits, dashes, underscores, and slashes.
+      // Match letters, digits, dashes, underscores, slashes, and periods.
       core.info(`Match letters, digits, dashes, underscores, slashes: ${ref}`)
-      return /^[\w\d\-\_\/]+$/
-    default:
+      return /^[\w\d\-_/\.]+$/
+    default: {
       // Get the part of the ref before the first asterisk.
-      const lead: string = /^[\w\d\-\_\/]+/.exec(_.escapeRegExp(ref))?.[0] ?? ''
+      const lead: string = /^[\w\d\-_/]+/.exec(_.escapeRegExp(ref))?.[0] ?? ''
       core.info(`Lead: ${lead}`)
 
       // If this returns an empty string, then the format is invalid
@@ -49,13 +55,14 @@ export async function createRegex(
       switch (tail) {
         case '*':
           core.info(`Match any character except a slash: ${ref}`)
-          return new RegExp(`^${lead}[\\w\\d\\-\\_]+$`)
+          return new RegExp(`^${lead}[\\w\\d\\-\\_\\.]+$`)
         case '**/*':
           core.info(`Match any character: ${ref}`)
-          return new RegExp(`^${lead}[\\w\\d\\-\\_\\/]+$`)
+          return new RegExp(`^${lead}[\\w\\d\\-\\_\\/\\.]+$`)
         default:
           core.info(`Fall back to just the lead: ${ref}`)
           return new RegExp(`^${lead.replace('/', '')}$`)
       }
+    }
   }
 }
