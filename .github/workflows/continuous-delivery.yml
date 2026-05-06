@@ -24,13 +24,13 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-tags: true
 
       - name: Tag
         id: tag
-        uses: issue-ops/semver@v2
+        uses: issue-ops/semver@v3
         with:
           manifest-path: package.json
           workspace: ${{ github.workspace }}
@@ -38,6 +38,6 @@ jobs:
 
       - name: Create Release
         id: release
-        uses: issue-ops/releaser@v2
+        uses: issue-ops/releaser@v3
         with:
           tag: v${{ steps.tag.outputs.version }}
